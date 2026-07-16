@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>PythonLine — Python IDE in your browser</title>
+  <meta name="description" content="A full Python IDE that runs entirely in your browser. No install, no server. Works on phones, tablets and laptops." />
+
+  <!-- CodeMirror editor (loaded from CDN) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">&#128013;</span>
+      <span class="brand-name">PythonLine</span>
+      <span class="tag" id="status">booting&hellip;</span>
+    </div>
+    <div class="actions">
+      <button id="run" class="btn btn-primary" disabled title="Run (Ctrl/Cmd + Enter)">
+        <span class="ico">&#9654;</span><span class="label">Run</span>
+      </button>
+      <button id="clear" class="btn" title="Clear output">Clear</button>
+      <button id="share" class="btn" title="Copy a shareable link to this code">Share</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="pane editor-pane">
+      <div class="pane-head">
+        <span>main.py</span>
+        <select id="examples" title="Load an example">
+          <option value="">examples&hellip;</option>
+          <option value="hello">Hello world</option>
+          <option value="numpy">NumPy</option>
+          <option value="pandas">Pandas</option>
+          <option value="plot">Matplotlib plot</option>
+          <option value="input">Interactive input()</option>
+        </select>
+      </div>
+      <textarea id="code"></textarea>
+    </section>
+
+    <div class="divider" id="divider" title="Drag to resize"></div>
+
+    <section class="pane output-pane">
+      <div class="pane-head">
+        <span>Output</span>
+        <div class="pkg">
+          <input id="pkg-name" placeholder="pip install &hellip;" spellcheck="false" />
+          <button id="pkg-install" class="btn btn-sm">add</button>
+        </div>
+      </div>
+      <div id="output" class="output"></div>
+      <div id="plots" class="plots"></div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2230;
+  --border: #2a313c;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #2ea043;
+  --accent-hover: #3fb950;
+  --blue: #388bfd;
+  font-size: 15px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.logo { font-size: 20px; }
+.brand-name { font-weight: 700; letter-spacing: .3px; }
+.tag {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel-2);
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45vw;
+}
+.actions { display: flex; gap: 8px; }
+
+.btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s, border-color .15s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { border-color: #3a4250; background: #232a38; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-sm { padding: 5px 10px; font-size: 13px; }
+.ico { font-size: 11px; }
+
+/* ---------- Workspace ---------- */
+.workspace {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--panel);
+}
+.editor-pane { flex: 1 1 55%; border-right: 1px solid var(--border); }
+.output-pane { flex: 1 1 45%; }
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.pane-head select,
+.pane-head input {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.pkg { display: flex; gap: 6px; align-items: center; }
+.pkg input { width: 120px; }
+
+/* CodeMirror fills the editor pane */
+.CodeMirror {
+  flex: 1 1 auto;
+  height: auto !important;
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---------- Output ---------- */
+.output {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px 12px;
+  font-family: "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.output .err { color: #ff7b72; }
+.output .sys { color: var(--muted); font-style: italic; }
+.output .in  { color: var(--blue); }
+.plots { flex: 0 0 auto; overflow: auto; max-height: 45%; }
+.plots img { max-width: 100%; display: block; margin: 8px auto; background: #fff; border-radius: 6px; }
+
+/* ---------- Divider (desktop drag-resize) ---------- */
+.divider {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: var(--border);
+}
+.divider:hover { background: var(--blue); }
+
+/* ---------- Mobile / tablet ---------- */
+@media (max-width: 760px) {
+  .workspace { flex-direction: column; }
+  .editor-pane { flex: 1 1 55%; border-right: none; border-bottom: 1px solid var(--border); }
+  .output-pane { flex: 1 1 45%; }
+  .divider { display: none; }
+  .tag { max-width: 30vw; }
+  .brand-name { display: none; }
+  .btn .label { display: none; }
+  .btn-primary .label { display: inline; }
+  .pkg input { width: 90px; }
+}
