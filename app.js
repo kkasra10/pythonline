@@ -183,6 +183,36 @@ function loadFromUrl() {
   return null;
 }
 
+/* ---------- Autosave to the browser (localStorage) ---------- */
+const STORAGE_KEY = "pythonline.code";
+let saveTimer = null;
+editor.on("change", () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(STORAGE_KEY, editor.getValue()); } catch {}
+  }, 400);
+});
+function loadFromStorage() {
+  try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+}
+
+/* ---------- Open a .py file from disk ---------- */
+function openFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    editor.setValue(String(reader.result));
+    setStatus("opened " + file.name);
+    setTimeout(() => setStatus("ready"), 1500);
+  };
+  reader.readAsText(file);
+}
+$("open").addEventListener("click", () => $("file-input").click());
+$("file-input").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) openFile(file);
+  e.target.value = "";
+});
+
 /* ---------- Desktop drag-to-resize ---------- */
 (function resizer() {
   const divider = $("divider");
@@ -207,5 +237,5 @@ $("share").addEventListener("click", share);
 $("pkg-install").addEventListener("click", installPkg);
 $("pkg-name").addEventListener("keydown", (e) => { if (e.key === "Enter") installPkg(); });
 
-editor.setValue(loadFromUrl() || EXAMPLES.hello);
+editor.setValue(loadFromUrl() || loadFromStorage() || EXAMPLES.hello);
 boot();
