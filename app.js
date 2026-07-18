@@ -157,6 +157,24 @@ function share() {
   setTimeout(() => setStatus("ready"), 1500);
 }
 
+/* ---------- Save code as a .py file ---------- */
+function saveFile() {
+  const name = (window.prompt("Save as:", "main.py") || "").trim();
+  if (!name) return;
+  const filename = name.endsWith(".py") ? name : name + ".py";
+  const blob = new Blob([editor.getValue()], { type: "text/x-python" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus("saved " + filename);
+  setTimeout(() => setStatus("ready"), 1500);
+}
+
 function loadFromUrl() {
   const m = location.hash.match(/code=([^&]+)/);
   if (m) {
@@ -184,6 +202,7 @@ function loadFromUrl() {
 /* ---------- Wire up ---------- */
 runBtn.addEventListener("click", runCode);
 $("clear").addEventListener("click", () => { outputEl.innerHTML = ""; plotsEl.innerHTML = ""; });
+$("save").addEventListener("click", saveFile);
 $("share").addEventListener("click", share);
 $("pkg-install").addEventListener("click", installPkg);
 $("pkg-name").addEventListener("keydown", (e) => { if (e.key === "Enter") installPkg(); });
