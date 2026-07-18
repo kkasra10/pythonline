@@ -11,12 +11,22 @@ you can `pip install` more pure-Python packages on the fly.
 
 - ✍️ CodeMirror editor with Python syntax highlighting
 - ▶️ Run code with the button or `Ctrl`/`Cmd` + `Enter`
+- ⏹️ **Stop** button that hard-kills a runaway program (Python runs in a Web Worker)
+- 🛡️ Safety guards: the UI never freezes during long runs, and output is capped so a `while True: print()` can't lock up the tab
 - 📦 Preloaded `numpy`, `pandas`, `matplotlib`; install more via the package box
 - 📊 Inline matplotlib plots
-- ⌨️ Interactive `input()` support
+- ⌨️ `input()` reads from the **stdin** panel (one value per line)
+- 📂 Open a `.py` file, 💾 Save one, and 💿 autosave to the browser (survives refresh)
 - 🔗 "Share" copies a link that encodes your code in the URL
 - 📱 Responsive layout — panes sit side-by-side on desktop, stacked on mobile
-- 💾 Example snippets to get started
+- 💡 Example snippets to get started
+
+## How it runs
+
+`index.html` loads the editor; `worker.js` boots Pyodide in a Web Worker and runs
+your code there. Because execution is off the main thread, the page stays
+responsive and **Stop** works by terminating the worker and spinning up a fresh
+interpreter.
 
 ## Run locally
 

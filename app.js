@@ -1,12 +1,16 @@
-/* PythonLine — a browser Python IDE powered by Pyodide (CPython in WebAssembly). */
+/* PythonLine — a browser Python IDE.
+   Python runs in a Web Worker (see worker.js), so the page never freezes and
+   Stop can hard-kill a runaway program. */
 
 const $ = (id) => document.getElementById(id);
 const statusEl = $("status");
 const outputEl = $("output");
 const plotsEl = $("plots");
 const runBtn = $("run");
+const stopBtn = $("stop");
 
-let pyodide = null;
+let worker = null;
+let ready = false;
 let running = false;
 
 /* ---------- Editor ---------- */
@@ -24,8 +28,22 @@ const editor = CodeMirror.fromTextArea($("code"), {
   },
 });
 
-/* ---------- Output helpers ---------- */
+/* ---------- Output (with a flood guard so runaway prints can't lock up the tab) ---------- */
+const MAX_OUT_CHARS = 400000;
+let outChars = 0;
+let truncated = false;
+
 function write(text, cls) {
+  if (truncated) return;
+  if (outChars + text.length > MAX_OUT_CHARS) {
+    truncated = true;
+    const span = document.createElement("span");
+    span.className = "sys";
+    span.textContent = "\n[output truncated — press Clear to reset]\n";
+    outputEl.appendChild(span);
+    return;
+  }
+  outChars += text.length;
   const span = document.createElement("span");
   if (cls) span.className = cls;
   span.textContent = text;
@@ -33,100 +51,84 @@ function write(text, cls) {
   outputEl.scrollTop = outputEl.scrollHeight;
 }
 function setStatus(t) { statusEl.textContent = t; }
-
-/* ---------- Boot Pyodide ---------- */
-async function boot() {
-  try {
-    setStatus("loading python…");
-    pyodide = await loadPyodide({
-      stdout: (s) => write(s + "\n"),
-      stderr: (s) => write(s + "\n", "err"),
-      stdin: () => window.prompt("input():") ?? "",
-    });
-
-    setStatus("loading libraries…");
-    // A "decent battery" of common libraries, ready out of the box.
-    await pyodide.loadPackage(["numpy", "pandas", "matplotlib", "micropip"]);
-
-    // Route matplotlib to an in-browser image instead of a native window.
-    await pyodide.runPythonAsync(`
-import matplotlib
-matplotlib.use("AGG")
-import matplotlib.pyplot as plt, io, base64, js
-
-def _show(*args, **kwargs):
-    for num in plt.get_fignums():
-        fig = plt.figure(num)
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=110)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        js.pyShowImage("data:image/png;base64," + b64)
-    plt.close("all")
-
-plt.show = _show
-`);
-
-    setStatus("ready");
-    runBtn.disabled = false;
-    write("PythonLine ready. numpy, pandas & matplotlib are preloaded.\n", "sys");
-    write("Install more with the box above, e.g. requests, sympy, scipy.\n\n", "sys");
-  } catch (e) {
-    setStatus("failed to load");
-    write("Failed to initialise Python runtime:\n" + e + "\n", "err");
-  }
-}
-
-// Called from Python to render a matplotlib figure.
-window.pyShowImage = (src) => {
+function clearOutput() { outputEl.innerHTML = ""; plotsEl.innerHTML = ""; outChars = 0; truncated = false; }
+function showImage(src) {
   const img = new Image();
   img.src = src;
   plotsEl.appendChild(img);
   plotsEl.scrollTop = plotsEl.scrollHeight;
-};
+}
 
-/* ---------- Run ---------- */
-async function runCode() {
-  if (!pyodide || running) return;
-  running = true;
-  runBtn.disabled = true;
+/* ---------- Run/Stop button state ---------- */
+function setBusy(b) {
+  running = b;
+  runBtn.disabled = b || !ready;
+  stopBtn.disabled = !b;
+  runBtn.style.display = b ? "none" : "";
+  stopBtn.style.display = b ? "" : "none";
+}
+
+/* ---------- Worker lifecycle ---------- */
+function startWorker(initial) {
+  worker = new Worker("worker.js");
+  worker.onmessage = (e) => {
+    const m = e.data;
+    switch (m.type) {
+      case "status": setStatus(m.text); break;
+      case "ready":
+        ready = true;
+        setStatus("ready");
+        runBtn.disabled = false;
+        if (initial) {
+          write("PythonLine ready. numpy, pandas & matplotlib are preloaded.\n", "sys");
+          write("Install more with the box above. For input(), type values in the stdin panel.\n\n", "sys");
+        }
+        break;
+      case "stdout": write(m.text); break;
+      case "stderr": write(m.text, "err"); break;
+      case "plot": showImage(m.src); break;
+      case "done":
+        if (m.error) write(m.error + "\n", "err");
+        setBusy(false);
+        setStatus("ready");
+        break;
+      case "installed": write("Installed " + m.name + ".\n", "sys"); setStatus("ready"); break;
+      case "install-failed": write("Could not install " + m.name + ": " + m.error + "\n", "err"); setStatus("ready"); break;
+    }
+  };
+  worker.onerror = (e) => { write("Worker error: " + e.message + "\n", "err"); setBusy(false); };
+  worker.postMessage({ type: "init" });
+}
+
+/* ---------- Run / Stop ---------- */
+function runCode() {
+  if (!ready || running) return;
+  setBusy(true);
   setStatus("running…");
   plotsEl.innerHTML = "";
   write("\n>>> run\n", "in");
+  worker.postMessage({ type: "run", code: editor.getValue(), stdin: $("stdin").value });
+}
 
-  const code = editor.getValue();
-  try {
-    // Auto-load any packages the code imports (numpy, etc. if not already present).
-    await pyodide.loadPackagesFromImports(code);
-    await pyodide.runPythonAsync(code);
-  } catch (e) {
-    write(String(e.message || e) + "\n", "err");
-  } finally {
-    running = false;
-    runBtn.disabled = false;
-    setStatus("ready");
-  }
+function stopCode() {
+  if (!running) return;
+  worker.terminate();          // hard-kill any runaway loop
+  write("\n[stopped]\n", "sys");
+  ready = false;
+  running = false;
+  runBtn.disabled = true;
+  stopBtn.disabled = true;
+  stopBtn.style.display = "none";
+  runBtn.style.display = "";
+  setStatus("restarting python…");
+  startWorker(false);          // respawn a fresh interpreter
 }
 
 /* ---------- Package installer ---------- */
-async function installPkg() {
+function installPkg() {
   const name = $("pkg-name").value.trim();
-  if (!name || !pyodide) return;
-  setStatus("installing " + name + "…");
-  write(`\n$ pip install ${name}\n`, "in");
-  try {
-    const micropip = pyodide.pyimport("micropip");
-    await micropip.install(name);
-    write(`Installed ${name}.\n`, "sys");
-  } catch (e) {
-    // Fall back to Pyodide's own package repo for compiled packages.
-    try {
-      await pyodide.loadPackage(name);
-      write(`Installed ${name}.\n`, "sys");
-    } catch (e2) {
-      write(`Could not install ${name}: ${e2.message || e2}\n`, "err");
-    }
-  }
-  setStatus("ready");
+  if (!name || !ready || running) return;
+  worker.postMessage({ type: "install", name });
   $("pkg-name").value = "";
 }
 
@@ -136,7 +138,7 @@ const EXAMPLES = {
   numpy: `import numpy as np\n\na = np.arange(12).reshape(3, 4)\nprint(a)\nprint("mean:", a.mean())\nprint("sum axis0:", a.sum(axis=0))`,
   pandas: `import pandas as pd\n\ndf = pd.DataFrame({\n    "name": ["Ada", "Alan", "Grace"],\n    "score": [91, 88, 95],\n})\nprint(df)\nprint("\\naverage score:", df.score.mean())`,
   plot: `import numpy as np\nimport matplotlib.pyplot as plt\n\nx = np.linspace(0, 2 * np.pi, 200)\nplt.plot(x, np.sin(x), label="sin")\nplt.plot(x, np.cos(x), label="cos")\nplt.legend()\nplt.title("Trig functions")\nplt.show()`,
-  input: `name = input("What is your name? ")\nprint("Hello,", name + "!")`,
+  input: `# Type a name into the stdin panel (below "Output"), then press Run.\nname = input("What is your name? ")\nprint("Hello,", name + "!")`,
 };
 
 $("examples").addEventListener("change", (e) => {
@@ -231,11 +233,13 @@ $("file-input").addEventListener("change", (e) => {
 
 /* ---------- Wire up ---------- */
 runBtn.addEventListener("click", runCode);
-$("clear").addEventListener("click", () => { outputEl.innerHTML = ""; plotsEl.innerHTML = ""; });
-$("save").addEventListener("click", saveFile);
+stopBtn.addEventListener("click", stopCode);
+$("clear").addEventListener("click", clearOutput);
 $("share").addEventListener("click", share);
+$("save").addEventListener("click", saveFile);
 $("pkg-install").addEventListener("click", installPkg);
 $("pkg-name").addEventListener("keydown", (e) => { if (e.key === "Enter") installPkg(); });
 
 editor.setValue(loadFromUrl() || loadFromStorage() || EXAMPLES.hello);
-boot();
+setStatus("booting…");
+startWorker(true);
