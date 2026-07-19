@@ -162,6 +162,25 @@ body { display: flex; flex-direction: column; }
   word-break: break-word;
 }
 .output .err { color: #ff7b72; }
+.output .inrow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 0;
+}
+.inrow-prompt { color: var(--muted); white-space: pre-wrap; }
+.inrow-field {
+  flex: 1 1 auto;
+  min-width: 60px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--blue);
+  color: var(--blue);
+  font-family: inherit;
+  font-size: inherit;
+  padding: 1px 0;
+  outline: none;
+}
 .output .sys { color: var(--muted); font-style: italic; }
 .output .in  { color: var(--blue); }
 .plots { flex: 0 0 auto; overflow: auto; max-height: 45%; }

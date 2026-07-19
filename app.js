@@ -51,12 +51,53 @@ function write(text, cls) {
   outputEl.scrollTop = outputEl.scrollHeight;
 }
 function setStatus(t) { statusEl.textContent = t; }
-function clearOutput() { outputEl.innerHTML = ""; plotsEl.innerHTML = ""; outChars = 0; truncated = false; }
+function clearOutput() { outputEl.innerHTML = ""; plotsEl.innerHTML = ""; outChars = 0; truncated = false; pendingInputEl = null; }
 function showImage(src) {
   const img = new Image();
   img.src = src;
   plotsEl.appendChild(img);
   plotsEl.scrollTop = plotsEl.scrollHeight;
+}
+
+/* ---------- Inline terminal-style input() prompt ---------- */
+let pendingInputEl = null;
+function askInline(promptText) {
+  const label = promptText || "";
+  const row = document.createElement("div");
+  row.className = "inrow";
+
+  const lbl = document.createElement("span");
+  lbl.className = "inrow-prompt";
+  lbl.textContent = label;
+
+  const field = document.createElement("input");
+  field.className = "inrow-field";
+  field.type = "text";
+  field.autocapitalize = "off";
+  field.autocomplete = "off";
+  field.spellcheck = false;
+
+  row.appendChild(lbl);
+  row.appendChild(field);
+  outputEl.appendChild(row);
+  outputEl.scrollTop = outputEl.scrollHeight;
+  pendingInputEl = row;
+  field.focus();
+
+  const submit = () => {
+    const value = field.value;
+    row.remove();
+    pendingInputEl = null;
+    write(label, "sys");        // echo the prompt…
+    write(value + "\n", "in");  // …and what was typed, terminal-style
+    if (worker) worker.postMessage({ type: "input-response", value });
+  };
+  field.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); submit(); }
+  });
+}
+function clearPendingInput() {
+  if (pendingInputEl) { pendingInputEl.remove(); pendingInputEl = null; }
 }
 
 /* ---------- Run/Stop button state ---------- */
@@ -87,11 +128,7 @@ function startWorker(initial) {
       case "stdout": write(m.text); break;
       case "stderr": write(m.text, "err"); break;
       case "plot": showImage(m.src); break;
-      case "input": {
-        const answer = window.prompt(m.prompt || "input():");
-        worker.postMessage({ type: "input-response", value: answer === null ? "" : answer });
-        break;
-      }
+      case "input": askInline(m.prompt); break;
       case "done":
         if (m.error) write(m.error + "\n", "err");
         setBusy(false);
@@ -118,6 +155,7 @@ function runCode() {
 function stopCode() {
   if (!running) return;
   worker.terminate();          // hard-kill any runaway loop
+  clearPendingInput();
   write("\n[stopped]\n", "sys");
   ready = false;
   running = false;
