@@ -73,15 +73,23 @@ def _prepare(code, answers):
     _state["answers"] = [str(a) for a in answers]
     _state["idx"] = 0
     _state["globals"] = {"__name__": "__main__", "__builtins__": builtins}
-    _state["code"] = code
+    _state["code"] = compile(code, "main.py", "exec")
 
 def _execute():
+    import sys, traceback
     _state["idx"] = 0
     try:
         exec(_state["code"], _state["globals"])
-        return None                 # completed
+        return ["done", ""]                 # completed
     except _NeedInput as e:
-        return e.prompt             # needs another answer
+        return ["input", str(e.prompt)]     # needs another answer
+    except SystemExit:
+        return ["done", ""]
+    except BaseException:
+        etype, evalue, tb = sys.exc_info()
+        # Drop our own exec frame so the traceback starts at the user's code.
+        clean = tb.tb_next if tb is not None else None
+        return ["error", "".join(traceback.format_exception(etype, evalue, clean))]
 
 def _show(*a, **k):
     for num in plt.get_fignums():
@@ -114,34 +122,25 @@ async function run(code, stdinText) {
   const prepare = pyodide.globals.get("_prepare");
   const execute = pyodide.globals.get("_execute");
 
-  while (true) {
-    buffer = [];                       // discard any partial output from the last try
-    prepare(code, answers);
-    let prompt;
-    try {
-      prompt = execute();              // null => done, string => needs input
-    } catch (e) {
-      // A real Python error (traceback) — show it and stop.
-      flush();
-      post("done", { error: String((e && e.message) || e) });
-      cleanup(prepare, execute);
-      return;
-    }
-    if (prompt === null || prompt === undefined) {
-      flush();                         // final, complete run
-      post("done");
-      cleanup(prepare, execute);
-      return;
-    }
-    // Need one more answer: ask the page and re-run.
-    const answer = await askPage(String(prompt));
-    answers.push(answer);
-  }
-}
+  try {
+    while (true) {
+      buffer = [];                     // discard any partial output from the last try
+      prepare(code, answers);
+      const res = execute();           // ["done"|"input"|"error", payload]
+      const [status, payload] = res.toJs();
+      res.destroy();
 
-function cleanup(prepare, execute) {
-  prepare.destroy();
-  execute.destroy();
+      if (status === "done") { flush(); post("done"); return; }
+      if (status === "error") { flush(); post("done", { error: payload }); return; }
+
+      // status === "input": ask the page and re-run with the answer added.
+      const answer = await askPage(String(payload));
+      answers.push(answer);
+    }
+  } finally {
+    prepare.destroy();
+    execute.destroy();
+  }
 }
 
 async function install(name) {

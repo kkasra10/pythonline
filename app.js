@@ -130,7 +130,7 @@ function startWorker(initial) {
       case "plot": showImage(m.src); break;
       case "input": askInline(m.prompt); break;
       case "done":
-        if (m.error) write(m.error + "\n", "err");
+        if (m.error) write(m.error.endsWith("\n") ? m.error : m.error + "\n", "err");
         setBusy(false);
         setStatus("ready");
         break;
