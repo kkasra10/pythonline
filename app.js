@@ -81,12 +81,17 @@ function startWorker(initial) {
         runBtn.disabled = false;
         if (initial) {
           write("PythonLine ready. numpy, pandas & matplotlib are preloaded.\n", "sys");
-          write("Install more with the box above. For input(), type values in the stdin panel.\n\n", "sys");
+          write("Install more with the box above. input() will pop up a prompt (or pre-fill the stdin panel).\n\n", "sys");
         }
         break;
       case "stdout": write(m.text); break;
       case "stderr": write(m.text, "err"); break;
       case "plot": showImage(m.src); break;
+      case "input": {
+        const answer = window.prompt(m.prompt || "input():");
+        worker.postMessage({ type: "input-response", value: answer === null ? "" : answer });
+        break;
+      }
       case "done":
         if (m.error) write(m.error + "\n", "err");
         setBusy(false);
@@ -138,7 +143,7 @@ const EXAMPLES = {
   numpy: `import numpy as np\n\na = np.arange(12).reshape(3, 4)\nprint(a)\nprint("mean:", a.mean())\nprint("sum axis0:", a.sum(axis=0))`,
   pandas: `import pandas as pd\n\ndf = pd.DataFrame({\n    "name": ["Ada", "Alan", "Grace"],\n    "score": [91, 88, 95],\n})\nprint(df)\nprint("\\naverage score:", df.score.mean())`,
   plot: `import numpy as np\nimport matplotlib.pyplot as plt\n\nx = np.linspace(0, 2 * np.pi, 200)\nplt.plot(x, np.sin(x), label="sin")\nplt.plot(x, np.cos(x), label="cos")\nplt.legend()\nplt.title("Trig functions")\nplt.show()`,
-  input: `# Type a name into the stdin panel (below "Output"), then press Run.\nname = input("What is your name? ")\nprint("Hello,", name + "!")`,
+  input: `# Run this: input() pops up a prompt asking for each value.\n# (Or pre-fill answers in the stdin panel, one per line, to skip the prompts.)\nname = input("What is your name? ")\nprint("Hello,", name + "!")`,
 };
 
 $("examples").addEventListener("change", (e) => {
