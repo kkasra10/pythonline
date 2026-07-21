@@ -15,6 +15,7 @@ you can `pip install` more pure-Python packages on the fly.
 - 🛡️ Safety guards: the UI never freezes during long runs, and output is capped so a `while True: print()` can't lock up the tab
 - 📦 Preloaded `numpy`, `pandas`, `matplotlib`; install more via the package box
 - 📊 Inline matplotlib plots
+- 🐢 `turtle` graphics rendered to a canvas (a browser-friendly reimplementation)
 - ⌨️ Interactive `input()` — pops up a prompt (or pre-fill answers in the stdin panel)
 - 📂 Open a `.py` file, 💾 Save one, and 💿 autosave to the browser (survives refresh)
 - 🔗 "Share" copies a link that encodes your code in the URL
