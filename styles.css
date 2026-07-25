@@ -22,6 +22,10 @@ html, body {
   overflow: hidden;
   -webkit-text-size-adjust: 100%;
 }
+/* Track the *visible* viewport so mobile browser chrome / keyboard don't clip us. */
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+}
 
 body { display: flex; flex-direction: column; }
 
@@ -30,7 +34,11 @@ body { display: flex; flex-direction: column; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 8px 12px;
+  padding-top: calc(8px + env(safe-area-inset-top));
+  padding-left: calc(12px + env(safe-area-inset-left));
+  padding-right: calc(12px + env(safe-area-inset-right));
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   gap: 8px;
@@ -52,7 +60,7 @@ body { display: flex; flex-direction: column; }
 }
 .tag-offline { color: var(--blue); }
 .tag-offline.ready { color: #fff; background: var(--accent); }
-.actions { display: flex; gap: 8px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 .btn {
   background: var(--panel-2);
@@ -75,7 +83,7 @@ body { display: flex; flex-direction: column; }
 .btn-sm { padding: 5px 10px; font-size: 13px; }
 .btn-danger { background: #da3633; border-color: #da3633; color: #fff; font-weight: 600; }
 .btn-danger:hover:not(:disabled) { background: #f85149; border-color: #f85149; }
-.ico { font-size: 11px; }
+.ico { font-size: 14px; line-height: 1; }
 
 /* ---------- stdin panel ---------- */
 .stdin-box { flex: 0 0 auto; background: var(--panel); border-bottom: 1px solid var(--border); }
@@ -200,11 +208,17 @@ body { display: flex; flex-direction: column; }
 @media (max-width: 760px) {
   .workspace { flex-direction: column; }
   .editor-pane { flex: 1 1 55%; border-right: none; border-bottom: 1px solid var(--border); }
-  .output-pane { flex: 1 1 45%; }
+  .output-pane { flex: 1 1 45%; padding-bottom: env(safe-area-inset-bottom); }
   .divider { display: none; }
-  .tag { max-width: 30vw; }
+  .tag { max-width: 34vw; }
   .brand-name { display: none; }
   .btn .label { display: none; }
   .btn-primary .label { display: inline; }
-  .pkg input { width: 90px; }
+  .btn { padding: 9px 10px; }          /* bigger tap targets */
+  .actions { gap: 6px; }
+  .pkg input { width: 88px; }
+
+  /* 16px on anything focusable stops iOS from auto-zooming on focus */
+  .CodeMirror { font-size: 16px; }
+  .pane-head input, .pane-head select, .stdin-box textarea, .output .inrow-field { font-size: 16px; }
 }
