@@ -20,7 +20,7 @@ you can `pip install` more pure-Python packages on the fly.
 - 📂 Open a `.py` file, 💾 Save one, and 💿 autosave to the browser (survives refresh)
 - 🔗 "Share" copies a link that encodes your code in the URL
 - 📱 Responsive layout — panes sit side-by-side on desktop, stacked on mobile
-- 📴 **Installable PWA that works offline** — after one online visit (run something once to cache the libraries), it runs with no internet; installable to home screen / desktop
+- 📴 **Installable PWA that works offline** — hit **Offline** to pre-download the whole runtime (Pyodide + numpy/pandas/matplotlib) up front; an **"✓ offline ready"** chip shows when you can safely disconnect. Installable to home screen / desktop.
 - 💡 Example snippets to get started
 
 ## How it runs

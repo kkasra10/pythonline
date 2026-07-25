@@ -40,6 +40,29 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Explicit pre-caching requested by the page ("Download for offline").
+self.addEventListener("message", (e) => {
+  const d = e.data;
+  if (d && d.type === "precache") precache(d.urls || [], e.ports && e.ports[0]);
+});
+
+async function precache(urls, port) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  let done = 0;
+  for (const url of urls) {
+    try {
+      const existing = await cache.match(url);
+      if (!existing) {
+        const res = await fetch(url, { mode: "cors" });
+        if (res && (res.ok || res.type === "opaque")) await cache.put(url, res.clone());
+      }
+    } catch (err) { /* skip failures, keep going */ }
+    done++;
+    if (port) port.postMessage({ done, total: urls.length });
+  }
+  if (port) port.postMessage({ done: urls.length, total: urls.length, complete: true });
+}
+
 function isCDN(url) {
   return url.hostname.endsWith("jsdelivr.net") || url.hostname.endsWith("cloudflare.com");
 }

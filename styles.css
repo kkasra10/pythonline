@@ -50,6 +50,8 @@ body { display: flex; flex-direction: column; }
   text-overflow: ellipsis;
   max-width: 45vw;
 }
+.tag-offline { color: var(--blue); }
+.tag-offline.ready { color: #fff; background: var(--accent); }
 .actions { display: flex; gap: 8px; }
 
 .btn {

@@ -201,7 +201,8 @@ function startWorker(initial) {
         runBtn.disabled = false;
         if (initial) {
           write("PythonLine ready. numpy, pandas & matplotlib are preloaded.\n", "sys");
-          write("Install more with the box above. input() will pop up a prompt (or pre-fill the stdin panel).\n\n", "sys");
+          write("Install more with the box above. input() will pop up a prompt (or pre-fill the stdin panel).\n", "sys");
+          write("Tip: press Offline to cache everything so the app works with no internet.\n\n", "sys");
         }
         break;
       case "stdout": write(m.text); break;
@@ -338,6 +339,96 @@ $("file-input").addEventListener("change", (e) => {
   if (file) openFile(file);
   e.target.value = "";
 });
+
+/* ---------- Offline: download-for-offline button + ready indicator ---------- */
+const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/";
+const CM_BASE = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/";
+const CDN_ASSETS = [
+  CM_BASE + "codemirror.min.css",
+  CM_BASE + "theme/material-darker.min.css",
+  CM_BASE + "codemirror.min.js",
+  CM_BASE + "mode/python/python.min.js",
+  CM_BASE + "addon/edit/matchbrackets.min.js",
+  CM_BASE + "addon/edit/closebrackets.min.js",
+];
+const PYODIDE_CORE = ["pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"]
+  .map((f) => PYODIDE_BASE + f);
+
+const offlineBtn = $("offline");
+const offlineChip = $("offline-chip");
+
+function setOfflineChip(text, ready) {
+  offlineChip.hidden = false;
+  offlineChip.textContent = text;
+  offlineChip.classList.toggle("ready", !!ready);
+}
+function markOfflineReady() {
+  setOfflineChip("✓ offline ready", true);
+  offlineBtn.disabled = true;
+  offlineBtn.querySelector(".label").textContent = "Offline ✓";
+}
+
+// Resolve a package + all its dependencies to wheel file names from the lock.
+function resolveWheels(lock, names) {
+  const pkgs = lock.packages || {};
+  const seen = new Set();
+  const out = [];
+  const stack = names.map((n) => n.toLowerCase());
+  while (stack.length) {
+    const n = stack.pop();
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const p = pkgs[n] || pkgs[n.replace(/-/g, "_")] || pkgs[n.replace(/_/g, "-")];
+    if (!p) continue;
+    out.push(p.file_name);
+    for (const d of p.depends || []) stack.push(String(d).toLowerCase());
+  }
+  return out;
+}
+
+// Ask the service worker to fetch+cache a list of URLs, reporting progress.
+function swPrecache(urls, onProgress) {
+  return new Promise((resolve, reject) => {
+    navigator.serviceWorker.ready.then((reg) => {
+      const target = navigator.serviceWorker.controller || reg.active;
+      if (!target) return reject(new Error("no active service worker"));
+      const mc = new MessageChannel();
+      mc.port1.onmessage = (ev) => {
+        if (onProgress) onProgress(ev.data);
+        if (ev.data.complete) resolve();
+      };
+      target.postMessage({ type: "precache", urls }, [mc.port2]);
+    }, reject);
+  });
+}
+
+async function downloadOffline() {
+  if (!("serviceWorker" in navigator)) { setOfflineChip("offline unsupported"); return; }
+  offlineBtn.disabled = true;
+  setOfflineChip("preparing…");
+  try {
+    const lock = await (await fetch(PYODIDE_BASE + "pyodide-lock.json")).json();
+    const wheels = resolveWheels(lock, ["numpy", "pandas", "matplotlib", "micropip"]).map((f) => PYODIDE_BASE + f);
+    const urls = [...new Set([...CDN_ASSETS, ...PYODIDE_CORE, ...wheels])];
+    await swPrecache(urls, (p) => setOfflineChip(`caching ${p.done}/${p.total}…`));
+    try { localStorage.setItem("pythonline.offline", "1"); } catch {}
+    markOfflineReady();
+  } catch (e) {
+    setOfflineChip("cache failed — retry");
+    offlineBtn.disabled = false;
+  }
+}
+
+// On load, reflect real cache state: if the Pyodide core is cached, we're ready.
+async function refreshOfflineState() {
+  try {
+    if (typeof caches === "undefined") return;
+    const hit = await caches.match(PYODIDE_BASE + "pyodide.asm.wasm");
+    if (hit) markOfflineReady();
+  } catch {}
+}
+offlineBtn.addEventListener("click", downloadOffline);
+refreshOfflineState();
 
 /* ---------- Desktop drag-to-resize ---------- */
 (function resizer() {
